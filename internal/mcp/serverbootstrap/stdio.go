@@ -21,7 +21,20 @@ func RunStdioServer(ctx context.Context, vault *vaultpkg.Vault, agentName string
 		}
 		defer func() { _ = mcpServer.Close() }()
 	}
+	return runStdioProtocol(ctx, vault, mcpServer)
+}
 
+// RunStdioServiceServer starts stdio transport around a lazy service-vault runtime.
+func RunStdioServiceServer(ctx context.Context, vaultDir string, agentName string, unlocker mcp.ServiceUnlocker) error {
+	mcpServer, err := mcp.NewServiceRuntimeServer(vaultDir, agentName, "stdio", unlocker)
+	if err != nil {
+		return fmt.Errorf("failed to create MCP service runtime: %w", err)
+	}
+	defer func() { _ = mcpServer.Close() }()
+	return runStdioProtocol(ctx, nil, mcpServer)
+}
+
+func runStdioProtocol(ctx context.Context, vault *vaultpkg.Vault, mcpServer *mcp.Server) error {
 	otlpEndpoint := ""
 	if vault != nil && vault.Config != nil && vault.Config.MCP != nil {
 		otlpEndpoint = vault.Config.MCP.OTLPEndpoint

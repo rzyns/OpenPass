@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/danieljustus/OpenPass/internal/audit"
 	"github.com/danieljustus/OpenPass/internal/config"
@@ -24,11 +26,17 @@ const (
 // It handles agent authentication, vault access, and tool execution.
 type Server struct {
 	vault        *vault.Vault
+	vaultDir     string
 	agent        *config.AgentProfile
 	auditLog     *audit.Logger
 	transport    string
 	policyEngine *policy.Engine
 	shareStore   *ShareStore
+
+	serviceMu       sync.Mutex
+	serviceConfig   *config.Config
+	serviceUnlocker ServiceUnlocker
+	now             func() time.Time
 }
 
 // New creates a new MCP server instance with the specified vault and agent configuration.
@@ -83,11 +91,13 @@ func New(v *vault.Vault, agentName string, transport string) (*Server, error) {
 	}
 
 	return &Server{
-		vault:        v,
-		agent:        &agent,
-		auditLog:     auditLog,
-		transport:    transport,
-		policyEngine: policyEngine,
+		vault:         v,
+		vaultDir:      v.Dir,
+		serviceConfig: cfg,
+		agent:         &agent,
+		auditLog:      auditLog,
+		transport:     transport,
+		policyEngine:  policyEngine,
 	}, nil
 }
 

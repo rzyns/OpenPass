@@ -30,6 +30,9 @@ var (
 	addUsageHint   string
 	addAutoRotate  bool
 	addExpiresAt   string
+	addReviewAfter string
+	addLastRotated string
+	addRotationInt string
 )
 
 var addCmd = &cobra.Command{
@@ -199,6 +202,26 @@ Interactive mode prompts for username, password, and URL.`,
 					return fmt.Errorf("invalid expires_at format, use RFC3339: %w", err)
 				}
 			}
+			if addReviewAfter != "" {
+				if t, err := time.Parse(time.RFC3339, addReviewAfter); err == nil {
+					secretMeta.ReviewAfter = &t
+				} else {
+					return fmt.Errorf("invalid review_after format, use RFC3339: %w", err)
+				}
+			}
+			if addLastRotated != "" {
+				if t, err := time.Parse(time.RFC3339, addLastRotated); err == nil {
+					secretMeta.LastRotatedAt = &t
+				} else {
+					return fmt.Errorf("invalid last_rotated_at format, use RFC3339: %w", err)
+				}
+			}
+			if addRotationInt != "" {
+				if _, err := vaultpkg.ParseLifecycleDuration(addRotationInt); err != nil {
+					return fmt.Errorf("invalid rotation_interval duration: %w", err)
+				}
+				secretMeta.RotationInterval = addRotationInt
+			}
 
 			if err := cryptopkg.ValidateTOTPData(data); err != nil {
 				return err
@@ -242,5 +265,8 @@ func init() {
 	addCmd.Flags().StringVar(&addUsageHint, "usage-hint", "", "Usage hint for AI agents")
 	addCmd.Flags().BoolVar(&addAutoRotate, "auto-rotate", false, "Enable automatic rotation reminder")
 	addCmd.Flags().StringVar(&addExpiresAt, "expires-at", "", "Expiration date (RFC3339 format)")
+	addCmd.Flags().StringVar(&addReviewAfter, "review-after", "", "Lifecycle review timestamp (RFC3339 format)")
+	addCmd.Flags().StringVar(&addLastRotated, "last-rotated-at", "", "Last rotation timestamp (RFC3339 format)")
+	addCmd.Flags().StringVar(&addRotationInt, "rotation-interval", "", "Rotation interval duration (for example 720h or 30d)")
 	rootCmd.AddCommand(addCmd)
 }

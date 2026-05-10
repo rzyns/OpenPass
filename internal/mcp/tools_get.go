@@ -48,6 +48,18 @@ func buildSecretMetadataResponse(entry *vault.Entry, path string) map[string]any
 	if entry.SecretMetadata.ExpiresAt != nil {
 		response["expires_at"] = entry.SecretMetadata.ExpiresAt.Format(time.RFC3339)
 	}
+	if entry.SecretMetadata.ReviewAfter != nil {
+		response["review_after"] = entry.SecretMetadata.ReviewAfter.Format(time.RFC3339)
+	}
+	if entry.SecretMetadata.LastRotatedAt != nil {
+		response["last_rotated_at"] = entry.SecretMetadata.LastRotatedAt.Format(time.RFC3339)
+	}
+	if entry.SecretMetadata.RotationInterval != "" {
+		response["rotation_interval"] = entry.SecretMetadata.RotationInterval
+		if _, err := vault.ParseLifecycleDuration(entry.SecretMetadata.RotationInterval); err != nil {
+			response["metadata_error"] = fmt.Sprintf("invalid rotation_interval: %v", err)
+		}
+	}
 
 	return response
 }

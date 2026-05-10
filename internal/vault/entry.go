@@ -41,10 +41,41 @@ type EntryMetadata struct {
 
 // SecretMetadata contains semantic metadata about a secret for AI agent usage.
 type SecretMetadata struct {
-	Type       SecretType `json:"type,omitempty"`
-	UsageHint  string     `json:"usage_hint,omitempty"`
-	AutoRotate bool       `json:"auto_rotate,omitempty"`
-	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	Type             SecretType `json:"type,omitempty"`
+	UsageHint        string     `json:"usage_hint,omitempty"`
+	AutoRotate       bool       `json:"auto_rotate,omitempty"`
+	ExpiresAt        *time.Time `json:"expires_at,omitempty"`
+	ReviewAfter      *time.Time `json:"review_after,omitempty"`
+	LastRotatedAt    *time.Time `json:"last_rotated_at,omitempty"`
+	RotationInterval string     `json:"rotation_interval,omitempty"`
+}
+
+// UnmarshalJSON preserves SecretMetadata's typed lifecycle timestamps while
+// returning field-specific errors for malformed metadata.
+func (m *SecretMetadata) UnmarshalJSON(data []byte) error {
+	type alias SecretMetadata
+	var raw struct {
+		alias
+		ExpiresAt     *string `json:"expires_at,omitempty"`
+		ReviewAfter   *string `json:"review_after,omitempty"`
+		LastRotatedAt *string `json:"last_rotated_at,omitempty"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*m = SecretMetadata(raw.alias)
+
+	var err error
+	if m.ExpiresAt, err = parseOptionalRFC3339Field("expires_at", raw.ExpiresAt); err != nil {
+		return err
+	}
+	if m.ReviewAfter, err = parseOptionalRFC3339Field("review_after", raw.ReviewAfter); err != nil {
+		return err
+	}
+	if m.LastRotatedAt, err = parseOptionalRFC3339Field("last_rotated_at", raw.LastRotatedAt); err != nil {
+		return err
+	}
+	return nil
 }
 
 // MarshalJSON implements custom JSON marshaling for Entry
@@ -418,6 +449,14 @@ func cloneEntry(entry *Entry) *Entry {
 	if entry.SecretMetadata.ExpiresAt != nil {
 		expiresAt := *entry.SecretMetadata.ExpiresAt
 		clone.SecretMetadata.ExpiresAt = &expiresAt
+	}
+	if entry.SecretMetadata.ReviewAfter != nil {
+		reviewAfter := *entry.SecretMetadata.ReviewAfter
+		clone.SecretMetadata.ReviewAfter = &reviewAfter
+	}
+	if entry.SecretMetadata.LastRotatedAt != nil {
+		lastRotatedAt := *entry.SecretMetadata.LastRotatedAt
+		clone.SecretMetadata.LastRotatedAt = &lastRotatedAt
 	}
 	if entry.Data != nil {
 		if cloned, ok := deepCloneMap(entry.Data).(map[string]any); ok {

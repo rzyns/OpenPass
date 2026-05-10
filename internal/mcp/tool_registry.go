@@ -50,6 +50,8 @@ func toolDefinitions() []toolDefinition {
 			InputSchema: objectSchema(nil, map[string]schemaProperty{
 				"prefix":          {Type: "string", Description: "Path prefix to filter"},
 				"include_details": {Type: "boolean", Description: "When true, returns metadata for each entry. Default: true."},
+				"expiring_within": {Type: "string", Description: "Only include credentials expiring within this duration (for example 72h or 30d)."},
+				"stale_after":     {Type: "string", Description: "Only include credentials stale for rotation/review within this duration (for example 7d)."},
 			}),
 			Handler: (*Server).handleList,
 		},
@@ -77,6 +79,16 @@ func toolDefinitions() []toolDefinition {
 				"path": {Type: "string", Description: "Entry path"},
 			}),
 			Handler: (*Server).handleGetMetadata,
+		},
+		{
+			Name:        "verify_credential",
+			Description: "Verify a stored credential against a safe provider check and return a typed status without exposing the value.",
+			InputSchema: objectSchema([]string{"path", "provider"}, map[string]schemaProperty{
+				"path":     {Type: "string", Description: "Entry path containing the credential"},
+				"provider": {Type: "string", Description: "Verifier provider: fake or github"},
+				"field":    {Type: "string", Description: "Credential field to verify. Default: password."},
+			}),
+			Handler: (*Server).handleVerifyCredential,
 		},
 		{
 			Name:        "find_entries",
@@ -128,6 +140,15 @@ func toolDefinitions() []toolDefinition {
 				"mask":              {Type: "string", Description: "Custom mask string (default: ***)"},
 			}),
 			Handler: (*Server).handleSanitizeOutput,
+		},
+		{
+			Name:        "scan_text",
+			Description: "Scan text for possible secrets and return safe structured findings plus redacted text. Raw secret values are never returned.",
+			InputSchema: objectSchema([]string{"text"}, map[string]schemaProperty{
+				"text":   {Type: "string", Description: "Text to scan for possible secrets"},
+				"marker": {Type: "string", Description: "Custom redaction marker (default: ***)"},
+			}),
+			Handler: (*Server).handleScanText,
 		},
 		{
 			Name:        "generate_password",

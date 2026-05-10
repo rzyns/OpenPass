@@ -16,6 +16,13 @@ import (
 )
 
 var runStdioServerFunc = func(ctx context.Context, vault *vaultpkg.Vault, agentName string) error {
+	if vault == nil {
+		vaultDir, err := vaultPath()
+		if err != nil {
+			return err
+		}
+		return serverbootstrap.RunStdioServiceServer(ctx, vaultDir, agentName, mcp.NewEnvironmentServiceUnlocker(vaultDir))
+	}
 	return serverbootstrap.RunStdioServer(ctx, vault, agentName, mcp.New)
 }
 var runHTTPServerFunc = func(ctx context.Context, bind string, port int, vault *vaultpkg.Vault) error {
@@ -64,7 +71,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		if vault == nil {
 			vault, err = serveUnlockVault(vaultDir, !stdioFlag)
 		}
-		if err != nil {
+		if err != nil && vault != nil {
 			return err
 		}
 	}

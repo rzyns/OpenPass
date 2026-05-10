@@ -26,7 +26,7 @@ func toolActionType(toolName string) string {
 		return "run"
 	case "list_entries":
 		return "list"
-	case "get_entry", "get_entry_value", "get_entry_metadata":
+	case "get_entry", "get_entry_value", "get_entry_metadata", "verify_credential":
 		return "get"
 	case "find_entries":
 		return "find"
@@ -88,7 +88,8 @@ func (s *Server) executeTool(ctx context.Context, name string, args json.RawMess
 		return nil, fmt.Errorf("tool %q is not available in the current environment", name)
 	}
 
-	// Check token tool scope
+	// Check token tool scope before any lazy vault unlock so authorization
+	// failures remain distinct from service-vault bootstrap failures.
 	if token, ok := TokenFromContext(ctx); ok {
 		if !isToolAllowed(token, name) {
 			span.SetStatus(codes.Error, "tool scope denied")
@@ -99,12 +100,23 @@ func (s *Server) executeTool(ctx context.Context, name string, args json.RawMess
 		token.UpdateLastUsed()
 	}
 
-	// Evaluate declarative policies before tool execution
+	// Evaluate declarative path policies before lazy vault unlock. Policy denials
+	// should remain distinct from service-vault bootstrap failures, and policy
+	// evaluation only needs request metadata plus the already-loaded agent profile.
 	if path, _ := req.RequireString("path"); path != "" {
 		if policyErr := s.checkPolicy(ctx, path, toolActionType(name)); policyErr != nil {
 			span.SetStatus(codes.Error, policyErr.Error())
 			metrics.RecordMCPRequest(name, agentName, "error", time.Since(start))
 			return nil, policyErr
+		}
+	}
+
+	if toolRequiresUnlockedVault(name) {
+		if svcErr := s.ensureUnlocked(ctx); svcErr != nil {
+			span.SetStatus(codes.Error, string(svcErr.Code))
+			span.SetAttributes(attribute.String("status", "error"), attribute.String("service_vault.code", string(svcErr.Code)))
+			metrics.RecordMCPRequest(name, agentName, "error", time.Since(start))
+			return callToolResultPayload(svcErr.ToolResult()), nil
 		}
 	}
 

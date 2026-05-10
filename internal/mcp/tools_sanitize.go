@@ -51,6 +51,27 @@ func (s *Server) handleSanitizeOutput(ctx context.Context, req CallToolRequest) 
 	return NewToolResultText(string(resultJSON)), nil
 }
 
+func (s *Server) handleScanText(ctx context.Context, req CallToolRequest) (*CallToolResult, error) {
+	text, err := req.RequireString("text")
+	if err != nil {
+		s.logAudit(ctx, "scan_text", "<invalid>", false)
+		return NewToolResultError(err.Error()), nil
+	}
+
+	marker := req.GetString("marker", "")
+	s.logAudit(ctx, "scan_text", "<scan>", true)
+	metrics.RecordVaultOperation("scan_text", "success")
+
+	report := masking.NewScanner(masking.NewPatternRegistry()).ScanText(text, masking.ScanOptions{
+		Redaction: masking.RedactionOptions{Marker: marker},
+	})
+	resultJSON, err := json.Marshal(report)
+	if err != nil {
+		return nil, fmt.Errorf("marshal scan_text result: %w", err)
+	}
+	return NewToolResultText(string(resultJSON)), nil
+}
+
 func (s *Server) buildVaultResolver() func(string) (string, bool) {
 	return func(secretValue string) (string, bool) {
 		if s.vault == nil {

@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+func syntheticGitHubPAT() string {
+	return "ghp_" + strings.Repeat("X", 36)
+}
+
 func TestDefaultPatterns(t *testing.T) {
 	patterns := DefaultPatterns()
 	if len(patterns) == 0 {
@@ -29,7 +33,7 @@ func TestFindMatches(t *testing.T) {
 		},
 		{
 			name:     "GitHub PAT",
-			text:     "token: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			text:     "token: " + syntheticGitHubPAT() + "",
 			want:     1,
 			wantName: "github_pat",
 		},
@@ -58,7 +62,7 @@ func TestFindMatches(t *testing.T) {
 		},
 		{
 			name: "Multiple secrets",
-			text: "AWS: AKIAIOSFODNN7EXAMPLE and GitHub: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			text: "AWS: AKIAIOSFODNN7EXAMPLE and GitHub: " + syntheticGitHubPAT() + "",
 			want: 2,
 		},
 	}
@@ -100,7 +104,7 @@ func TestSanitize(t *testing.T) {
 		},
 		{
 			name: "GitHub PAT masked",
-			text: "token: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			text: "token: " + syntheticGitHubPAT() + "",
 			want: "token: ***",
 		},
 		{
@@ -110,7 +114,7 @@ func TestSanitize(t *testing.T) {
 		},
 		{
 			name: "Multiple secrets",
-			text: "AWS: AKIAIOSFODNN7EXAMPLE and GitHub: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			text: "AWS: AKIAIOSFODNN7EXAMPLE and GitHub: " + syntheticGitHubPAT() + "",
 			want: "AWS: *** and GitHub: ***",
 		},
 	}

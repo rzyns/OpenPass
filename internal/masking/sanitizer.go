@@ -156,6 +156,7 @@ type Match struct {
 	Start       int
 	End         int
 	Severity    string
+	Description string
 }
 
 // FindMatches scans text for all registered patterns and returns matches.
@@ -176,6 +177,7 @@ func (r *PatternRegistry) FindMatches(text string) []Match {
 				Start:       m[0],
 				End:         m[1],
 				Severity:    p.Severity,
+				Description: p.Description,
 			})
 		}
 	}

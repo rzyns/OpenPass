@@ -572,14 +572,32 @@ func newDefaultAgentProfile(name string) AgentProfile {
 	}
 }
 
+func hermesRuntimeAllowedPaths() []string {
+	return []string{
+		"identities/gmail/hermes-agent",
+		"identities/github/szponeczek",
+		"identities/github/pazureczek",
+		"providers/openrouter/hermes-runtime",
+		"providers/elevenlabs/hermes-stt",
+		"providers/search/local-dev",
+		"tools/blogwatcher/rss-sync",
+		"tools/discord/agent-gateway",
+		"tools/airtable/project-tracker",
+		"experiments/openpass-agent-vault",
+		"synthetic/agent-vault",
+		"synthetic/scanner",
+	}
+}
+
 func builtinAgentProfiles() map[string]AgentProfile {
 	return map[string]AgentProfile{
-		"default":     {Name: "default", AllowedPaths: []string{"*"}, CanWrite: false, CanRunCommands: false, ApprovalMode: "none"},
-		"claude-code": {Name: "claude-code", AllowedPaths: []string{"*"}, CanWrite: true, CanRunCommands: false, ApprovalMode: "none"},
-		"codex":       {Name: "codex", AllowedPaths: []string{"*"}, CanWrite: false, CanRunCommands: false, ApprovalMode: "none"},
-		"hermes":      {Name: "hermes", AllowedPaths: []string{"*"}, CanWrite: true, CanRunCommands: false, ApprovalMode: "none"},
-		"openclaw":    {Name: "openclaw", AllowedPaths: []string{"*"}, CanWrite: true, CanRunCommands: false, ApprovalMode: "none"},
-		"opencode":    {Name: "opencode", AllowedPaths: []string{"*"}, CanWrite: false, CanRunCommands: false, ApprovalMode: "none"},
+		"default":        {Name: "default", AllowedPaths: []string{"*"}, CanWrite: false, CanRunCommands: false, ApprovalMode: "none"},
+		"claude-code":    {Name: "claude-code", AllowedPaths: []string{"*"}, CanWrite: true, CanRunCommands: false, ApprovalMode: "none"},
+		"codex":          {Name: "codex", AllowedPaths: []string{"*"}, CanWrite: false, CanRunCommands: false, ApprovalMode: "none"},
+		"hermes":         {Name: "hermes", AllowedPaths: []string{"*"}, CanWrite: true, CanRunCommands: false, ApprovalMode: "none"},
+		"hermes-runtime": {Name: "hermes-runtime", AllowedPaths: hermesRuntimeAllowedPaths(), CanWrite: true, CanRunCommands: true, ApprovalMode: "none"},
+		"openclaw":       {Name: "openclaw", AllowedPaths: []string{"*"}, CanWrite: true, CanRunCommands: false, ApprovalMode: "none"},
+		"opencode":       {Name: "opencode", AllowedPaths: []string{"*"}, CanWrite: false, CanRunCommands: false, ApprovalMode: "none"},
 	}
 }
 

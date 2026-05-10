@@ -110,7 +110,13 @@ func RunHTTPServerOnListener(ctx context.Context, listener net.Listener, v *vaul
 		resultChan := make(chan result, 1)
 
 		go func() {
-			mcpServer, err := factory(v, agentName, "http")
+			var mcpServer *mcp.Server
+			var err error
+			if v == nil {
+				mcpServer, err = mcp.NewServiceRuntimeServer(vaultDir, agentName, "http", mcp.NewEnvironmentServiceUnlocker(vaultDir))
+			} else {
+				mcpServer, err = factory(v, agentName, "http")
+			}
 			if err != nil {
 				resultChan <- result{err: err}
 				return

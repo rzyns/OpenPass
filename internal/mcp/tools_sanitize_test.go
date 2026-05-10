@@ -1,6 +1,8 @@
 package mcp
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"filippo.io/age"
@@ -91,6 +93,65 @@ func TestHandleSanitizeOutput(t *testing.T) {
 				tt.check(t, result.Text)
 			}
 		})
+	}
+}
+
+func TestHandleScanText(t *testing.T) {
+	server := setupTestServer(t)
+	secret := "ghp_" + strings.Repeat("E", 36)
+
+	result, err := server.handleScanText(t.Context(), CallToolRequest{Arguments: map[string]any{
+		"text": secret,
+	}})
+	if err != nil {
+		t.Fatalf("handleScanText() error = %v", err)
+	}
+	if result == nil || result.IsError {
+		t.Fatalf("handleScanText() returned error result: %#v", result)
+	}
+	if strings.Contains(result.Text, secret) {
+		t.Fatalf("scan_text leaked raw secret: %s", result.Text)
+	}
+
+	var report struct {
+		FindingCount int `json:"finding_count"`
+		Findings     []struct {
+			DetectorName  string `json:"detector_name"`
+			Severity      string `json:"severity"`
+			RedactedValue string `json:"redacted_value"`
+		} `json:"findings"`
+		RedactedText string `json:"redacted_text"`
+	}
+	if err := json.Unmarshal([]byte(result.Text), &report); err != nil {
+		t.Fatalf("scan_text returned invalid JSON: %v", err)
+	}
+	if report.FindingCount != 1 || len(report.Findings) != 1 {
+		t.Fatalf("got report %#v, want one finding", report)
+	}
+	if report.Findings[0].DetectorName != "github_pat" || report.Findings[0].Severity != "high" {
+		t.Fatalf("unexpected finding metadata: %#v", report.Findings[0])
+	}
+	if report.RedactedText == "" || !strings.Contains(report.RedactedText, report.Findings[0].RedactedValue) {
+		t.Fatalf("missing redacted text coherence: %#v", report)
+	}
+}
+
+func TestHandleScanTextHonorsCustomMarker(t *testing.T) {
+	server := setupTestServer(t)
+	secret := "sk_live_" + strings.Repeat("F", 24)
+
+	result, err := server.handleScanText(t.Context(), CallToolRequest{Arguments: map[string]any{
+		"text":   secret,
+		"marker": "[REDACTED-SENSITIVE-VALUE]",
+	}})
+	if err != nil {
+		t.Fatalf("handleScanText() error = %v", err)
+	}
+	if strings.Contains(result.Text, secret) {
+		t.Fatalf("scan_text leaked raw secret: %s", result.Text)
+	}
+	if !strings.Contains(result.Text, "[REDACTED-SENSITIVE-VALUE]") {
+		t.Fatalf("custom marker missing from result: %s", result.Text)
 	}
 }
 

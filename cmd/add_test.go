@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/danieljustus/OpenPass/internal/config"
 	vaultpkg "github.com/danieljustus/OpenPass/internal/vault"
@@ -476,5 +477,63 @@ func TestAdd_InteractiveReadErrors(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "read username") {
 		t.Errorf("expected 'read username' error, got: %v", err)
+	}
+}
+
+func TestCmdAdd_WithLifecycleMetadataFlags(t *testing.T) {
+	vaultDir, passphrase := initVault(t)
+	setPassEnv(t, string(passphrase))
+	defer setupVaultFlag(t, vaultDir)()
+
+	expiresAt := "2026-06-01T00:00:00Z"
+	reviewAfter := "2026-05-15T00:00:00Z"
+	lastRotatedAt := "2026-04-01T00:00:00Z"
+	out := execWithStdout("--vault", vaultDir, "add", "lifecycle-entry",
+		"--value", "StrongP@ssw0rd123",
+		"--expires-at", expiresAt,
+		"--review-after", reviewAfter,
+		"--last-rotated-at", lastRotatedAt,
+		"--rotation-interval", "30d")
+	if !strings.Contains(out, "Entry created") {
+		t.Errorf("expected Entry created, got: %s", out)
+	}
+
+	opened, err := vaultpkg.OpenWithPassphrase(vaultDir, passphrase)
+	if err != nil {
+		t.Fatalf("open vault: %v", err)
+	}
+	entry, err := vaultpkg.ReadEntry(vaultDir, "lifecycle-entry", opened.Identity)
+	if err != nil {
+		t.Fatalf("read lifecycle entry: %v", err)
+	}
+	wantExpires, _ := time.Parse(time.RFC3339, expiresAt)
+	wantReview, _ := time.Parse(time.RFC3339, reviewAfter)
+	wantRotated, _ := time.Parse(time.RFC3339, lastRotatedAt)
+	if entry.SecretMetadata.ExpiresAt == nil || !entry.SecretMetadata.ExpiresAt.Equal(wantExpires) {
+		t.Fatalf("ExpiresAt = %v, want %v", entry.SecretMetadata.ExpiresAt, wantExpires)
+	}
+	if entry.SecretMetadata.ReviewAfter == nil || !entry.SecretMetadata.ReviewAfter.Equal(wantReview) {
+		t.Fatalf("ReviewAfter = %v, want %v", entry.SecretMetadata.ReviewAfter, wantReview)
+	}
+	if entry.SecretMetadata.LastRotatedAt == nil || !entry.SecretMetadata.LastRotatedAt.Equal(wantRotated) {
+		t.Fatalf("LastRotatedAt = %v, want %v", entry.SecretMetadata.LastRotatedAt, wantRotated)
+	}
+	if entry.SecretMetadata.RotationInterval != "30d" {
+		t.Fatalf("RotationInterval = %q, want 30d", entry.SecretMetadata.RotationInterval)
+	}
+}
+
+func TestCmdAdd_InvalidRotationIntervalRejected(t *testing.T) {
+	vaultDir, passphrase := initVault(t)
+	setPassEnv(t, string(passphrase))
+	defer setupVaultFlag(t, vaultDir)()
+
+	stderr := captureStderr(func() {
+		rootCmd.SetArgs([]string{"--vault", vaultDir, "add", "bad-rotation", "--value", "StrongP@ssw0rd123", "--rotation-interval", "soon"})
+		_ = rootCmd.Execute()
+		rootCmd.SetArgs(nil)
+	})
+	if !strings.Contains(stderr, "invalid rotation_interval") {
+		t.Fatalf("expected invalid rotation_interval error, got: %s", stderr)
 	}
 }

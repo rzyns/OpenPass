@@ -13,13 +13,25 @@ import (
 
 func (s *Server) handleGetAuthStatus(ctx context.Context, req CallToolRequest) (*CallToolResult, error) {
 	_, _ = ctx, req
-	if s == nil || s.vault == nil || s.vault.Config == nil {
+	cfg := (*config.Config)(nil)
+	if s != nil {
+		cfg = s.serviceConfig
+	}
+	if s != nil && s.vault != nil && s.vault.Config != nil {
+		cfg = s.vault.Config
+	}
+	if cfg == nil {
 		return nil, fmt.Errorf("vault config unavailable")
 	}
+	locked := true
+	if s != nil && s.vault != nil {
+		locked = false
+	}
 	status := map[string]any{
-		"method":           s.vault.Config.EffectiveAuthMethod(),
+		"method":           cfg.EffectiveAuthMethod(),
 		"touchIDAvailable": session.BiometricAvailable(),
 		"cache":            session.GetCacheStatus(),
+		"vaultLocked":      locked,
 	}
 	payload, err := json.Marshal(status)
 	if err != nil {
